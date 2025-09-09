@@ -1,0 +1,12 @@
+{
+  "name": "solanatradebotts",
+  "version": "1.0.0",
+  "description": "This is a solana trande bot using typeScript to write.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
