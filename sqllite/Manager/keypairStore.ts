@@ -1,0 +1,64 @@
+import sqlite3 from 'sqlite3';
+import { open, Database } from 'sqlite';
+
+export interface StoredKeypairRow {
+	id?: number;
+	publicKey: string;
+	secretKey: string;
+	label?: string;
+	isMain?: number; // 0 or 1
+	createdAt?: string;
+}
+
+async function getDb(): Promise<Database> {
+	const db = await open({
+		filename: 'wallet.db',
+		driver: sqlite3.Database,
+	});
+	await db.exec(`
+		CREATE TABLE IF NOT EXISTS keypairs (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			publicKey TEXT NOT NULL,
+			secretKey TEXT NOT NULL,
+			label TEXT,
+			isMain INTEGER DEFAULT 0,
+			createdAt TEXT DEFAULT (datetime('now'))
+		);
+	`);
+	return db;
+}
+
+export async function storeMainKeypair(publicKey: string, secretKey: Uint8Array): Promise<number> {
+	const db = await getDb();
+	await db.run(`UPDATE keypairs SET isMain = 0 WHERE isMain = 1`);
+	const result = await db.run(
+		`INSERT INTO keypairs (publicKey, secretKey, label, isMain) VALUES (?, ?, ?, 1)`,
+		publicKey,
+		JSON.stringify(Array.from(secretKey)),
+		'main'
+	);
+	return result.lastID as number;
+}
+
+export interface LoadedKeypair {
+	publicKey: string;
+	secretKey: Uint8Array;
+}
+
+export async function loadMainKeypair(): Promise<LoadedKeypair | null> {
+	const db = await getDb();
+	const row = await db.get<StoredKeypairRow>(
+		`SELECT publicKey, secretKey FROM keypairs WHERE isMain = 1 ORDER BY id DESC LIMIT 1`
+	);
+	if (!row) return null;
+	let parsed: number[];
+	try {
+		parsed = JSON.parse(row.secretKey) as number[];
+	} catch {
+		return null;
+	}
+	return {
+		publicKey: row.publicKey,
+		secretKey: new Uint8Array(parsed),
+	};
+}
