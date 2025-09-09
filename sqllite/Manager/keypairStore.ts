@@ -1,5 +1,7 @@
 import sqlite3 from 'sqlite3';
 import { open, Database } from 'sqlite';
+import fs from 'fs';
+import path from 'path';
 
 export interface StoredKeypairRow {
 	id?: number;
@@ -11,9 +13,16 @@ export interface StoredKeypairRow {
 }
 
 async function getDb(): Promise<Database> {
+	// Use DB file placed under sqllite/DB/wallet.db relative to this module
+	const dbPath = path.resolve(__dirname, '../DB/wallet.db');
+	if (!fs.existsSync(dbPath)) {
+		throw new Error(`Database file not found at ${dbPath}. Please create it first.`);
+	}
+
 	const db = await open({
-		filename: 'wallet.db',
+		filename: dbPath,
 		driver: sqlite3.Database,
+		mode: sqlite3.OPEN_READWRITE,
 	});
 	await db.exec(`
 		CREATE TABLE IF NOT EXISTS keypairs (

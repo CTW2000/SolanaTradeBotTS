@@ -29,14 +29,20 @@ export async function getBalance(publicKey: PublicKey): Promise<number> {
 
 
 
-
-
-
 export async function main(): Promise<void> {
+  let mainWallet = await getMainWallet();
+  if (!mainWallet) {
+    console.log('No main wallet found. Generating one...');
+    await generateMainWallet();
+    mainWallet = await getMainWallet();
+    if (!mainWallet) {
+      console.error('Failed to generate/load main wallet.');
+      return;
+    }
+  }
 
-  const mainWallet = await getMainWallet();
-  console.log('Main wallet:', mainWallet?.publicKey.toBase58());
-  const balance = await getBalance(mainWallet?.publicKey as PublicKey);
+  console.log('Main wallet:', mainWallet.publicKey.toBase58());
+  const balance = await getBalance(mainWallet.publicKey);
   console.log('Balance (SOL):', balance);
 }
 

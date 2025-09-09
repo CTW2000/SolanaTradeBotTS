@@ -5,3 +5,15 @@ export const rpc = 'https://devnet.helius-rpc.com/?api-key=323bbf75-3d84-4395-8b
 export const connection = new Connection(rpc, {
   commitment: 'confirmed',
 });
+
+export const TOKEN_METADATA = {
+  name: 'CTW2000',
+  symbol: 'CTW',
+  uri: 'https://black-decisive-condor-99.mypinata.cloud/ipfs/bafkreihijphze2wqnzkgkeech4sqlln7b62lgjxwc5lan5eqxqsggzjw54',
+  sellerFeeBasisPoints: 0,
+};
+
+export const TOKEN_CONFIG = {
+  decimals: 9,
+  initialSupply: 1_000_000,
+};
