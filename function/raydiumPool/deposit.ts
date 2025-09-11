@@ -1,35 +1,56 @@
 import { ApiV3PoolInfoStandardItemCpmm, CpmmKeys, Percent, getPdaPoolAuthority } from '@raydium-io/raydium-sdk-v2'
 import BN from 'bn.js'
-import { initSdk, txVersion } from './raydiumConfig'
+import { initSdk, txVersion, getCurrentPool } from './raydiumConfig'
 import Decimal from 'decimal.js'
-import { isValidCpmm } from './utils'
+import { isValidCpmm } from './raydiumConfig'
 
 
 
-
-
+  //npx ts-node /root/ListenInRust/SolanaTradeBotTS/function/raydiumPool/deposit.ts
+  //npx ts-node deposit.ts
 export const deposit = async () => {
   const raydium = await initSdk()
 
-  // SOL - USDC pool
-  // const poolId = '7JuwJuNU88gurFnyWeiyGKbFmExMWcmRZntn9imEzdny'
-  const poolId = '6rXSohG2esLJMzKZzpFr1BXUeXg8Cr5Gv3TwbuXbrwQq'
+  // Load pool id from config (DB-backed)
+  const poolId = await getCurrentPool()
+  console.log('poolId', poolId)
   let poolInfo: ApiV3PoolInfoStandardItemCpmm
   let poolKeys: CpmmKeys | undefined
 
-  if (raydium.cluster === 'mainnet') {
-    // if you wish to get pool info from rpc, also can modify logic to go rpc method directly
+  
+  try {
+    // Try API method first for both mainnet and devnet
     const data = await raydium.api.fetchPoolById({ ids: poolId })
+    if (!data || data.length === 0 || !data[0]) {
+      throw new Error('Pool not found in API')
+    }
     poolInfo = data[0] as ApiV3PoolInfoStandardItemCpmm
     if (!isValidCpmm(poolInfo.programId)) throw new Error('target pool is not CPMM pool')
-  } else {
-    const data = await raydium.cpmm.getPoolInfoFromRpc(poolId)
-    poolInfo = data.poolInfo
-    poolKeys = data.poolKeys
+  } catch (error) {
+    console.log('API method failed, trying RPC method...', error instanceof Error ? error.message : String(error))
+    try {
+      // Fallback to RPC method if API fails
+      const data = await raydium.cpmm.getPoolInfoFromRpc(poolId)
+      poolInfo = data.poolInfo
+      poolKeys = data.poolKeys
+    } catch (rpcError) {
+      console.log('RPC method also failed, this might be a newly created pool. Waiting 30 seconds and retrying...')
+      // Wait 30 seconds for pool to be indexed
+      await new Promise(resolve => setTimeout(resolve, 30000))
+      
+      try {
+        const retryData = await raydium.cpmm.getPoolInfoFromRpc(poolId)
+        poolInfo = retryData.poolInfo
+        poolKeys = retryData.poolKeys
+        console.log('Pool found after retry!')
+      } catch (finalError) {
+        throw new Error(`Pool ${poolId} not found on ${raydium.cluster} even after retry. This might be a newly created pool that needs more time to be indexed.`)
+      }
+    }
   }
 
   const uiInputAmount = '0.0001'
-  const inputAmount = new BN(new Decimal(uiInputAmount).mul(10 ** poolInfo.mintA.decimals).toFixed(0))
+  const inputAmount = new BN(new Decimal(uiInputAmount).times(10 ** poolInfo.mintA.decimals).toFixed(0))
   const slippage = new Percent(1, 100) // 1%
   const baseIn = true
 
@@ -48,6 +69,7 @@ export const deposit = async () => {
     baseIn,
     epochInfo: await raydium.fetchEpochInfo()
   });
+
 
   computeRes.anotherAmount.amount -> pair amount needed to add liquidity
   computeRes.anotherAmount.fee -> token2022 transfer fee, might be undefined if isn't token2022 program
@@ -79,4 +101,4 @@ export const deposit = async () => {
 }
 
 /** uncomment code below to execute */
-// deposit()
+ deposit()

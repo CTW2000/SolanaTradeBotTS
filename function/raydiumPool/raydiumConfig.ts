@@ -1,9 +1,10 @@
-import {  TxVersion, Raydium, DEV_API_URLS } from '@raydium-io/raydium-sdk-v2'
+import {  TxVersion, Raydium, DEV_API_URLS, CREATE_CPMM_POOL_PROGRAM, DEVNET_PROGRAM_ID } from '@raydium-io/raydium-sdk-v2'
 import { connection, cluster } from '../../config'
 import { clusterApiUrl, Keypair } from '@solana/web3.js'
 import { getMainWallet } from '../wallet/walletFun'
 import { loadCurrentToken } from '../../sqllite/Manager/tokenStore'
 import { SOL_MINT } from '../../constants';
+import { loadCurrentPool } from '../../sqllite/Manager/raydiumPoolStore'
 
 
 
@@ -64,3 +65,18 @@ export const getCurrentTokenMintAddress = async (): Promise<string> => {
   if (!current?.mint) throw new Error('No current token mint found. Please store a token first.')
   return current.mint
 }
+
+export const getCurrentPool = async (): Promise<string> => {
+  const current = await loadCurrentPool()
+  if (!current?.poolId) throw new Error('No current pool found. Please store a pool first.')
+  return current.poolId as string
+}
+
+
+
+const VALID_PROGRAM_ID = new Set([
+    CREATE_CPMM_POOL_PROGRAM.toBase58(),
+    DEVNET_PROGRAM_ID.CREATE_CPMM_POOL_PROGRAM.toBase58(),
+  ])
+  
+  export const isValidCpmm = (id: string) => VALID_PROGRAM_ID.has(id)

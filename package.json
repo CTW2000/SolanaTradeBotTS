@@ -16,10 +16,12 @@
     "better-sqlite3": "^12.2.0",
     "bn": "^1.0.5",
     "decimal": "^0.0.2",
+    "decimal.js": "^10.6.0",
     "sqlite": "^5.1.1",
     "sqlite3": "^5.1.7"
   },
   "devDependencies": {
-    "@types/bn.js": "^5.2.0"
+    "@types/bn.js": "^5.2.0",
+    "@types/decimal.js": "^0.0.32"
   }
 }

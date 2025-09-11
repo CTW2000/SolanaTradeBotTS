@@ -9,15 +9,13 @@ import BN from 'bn.js'
 import { initSdk, txVersion, SOL_MINT_CONST, getCurrentTokenMintAddress } from './raydiumConfig'
 import { TOKEN_CONFIG,cluster } from '../../config'
 import { TOKEN_PROGRAM_ID } from '../../constants'
+import { storePool } from '../../sqllite/Manager/raydiumPoolStore'
 
-  
   //npx ts-node /root/ListenInRust/SolanaTradeBotTS/function/raydiumPool/createCpmmPool.ts
   //npx ts-node createCpmmPool.ts
-
-
   
   export const createPool = async () => {
-    const raydium = await initSdk({ loadToken: false })
+    const raydium = await initSdk({ loadToken: true })
   
     // Build mint info directly without calling token.getTokenInfo
     const currentMint = await getCurrentTokenMintAddress()
@@ -45,17 +43,13 @@ import { TOKEN_PROGRAM_ID } from '../../constants'
     const baseProgramId = isMainnet ? CREATE_CPMM_POOL_PROGRAM : DEVNET_PROGRAM_ID.CREATE_CPMM_POOL_PROGRAM
     const basePoolFeeAccount = isMainnet ? CREATE_CPMM_POOL_FEE_ACC : DEVNET_PROGRAM_ID.CREATE_CPMM_POOL_FEE_ACC
 
-    const feeConfigs = [
-      {
-        id: getCpmmPdaAmmConfigId(baseProgramId, 0).publicKey.toBase58(),
-        index: 0,
-        protocolFeeRate: 0,
-        tradeFeeRate: 0,
-        fundFeeRate: 0,
-        createPoolFee: '0',
-        creatorFeeRate: 0,
-      },
-    ]
+    const feeConfigs = await raydium.api.getCpmmConfigs()
+
+    if (raydium.cluster === 'devnet') {
+      feeConfigs.forEach((config) => {
+        config.id = getCpmmPdaAmmConfigId(DEVNET_PROGRAM_ID.CREATE_CPMM_POOL_PROGRAM, config.index).publicKey.toBase58()
+      })
+    }
   
     const { execute, extInfo, transaction } = await raydium.cpmm.createPool({
       // poolId: // your custom publicKey, default sdk will automatically calculate pda pool id
@@ -97,24 +91,51 @@ import { TOKEN_PROGRAM_ID } from '../../constants'
         mintA: addr.mintA,
         mintB: addr.mintB,
       })
+
+      await storePool({
+        poolId: asStr(addr.poolId ?? addr.id),
+        programId: asStr(addr.programId),
+        lpMint: asStr(addr.lpMint),
+        vaultA: asStr(addr.vault?.A ?? addr.vaultA),
+        vaultB: asStr(addr.vault?.B ?? addr.vaultB),
+        poolFeeAccount: asStr(addr.poolFeeAccount),
+        feeConfigId: asStr(addr.feeConfig?.id),
+        mintAAddress: addr.mintA.address,
+        mintADecimals: addr.mintA.decimals,
+        mintAProgramId: addr.mintA.programId,
+        mintBAddress: addr.mintB.address,
+        mintBDecimals: addr.mintB.decimals,
+        mintBProgramId: addr.mintB.programId,
+      })
     } catch (e) {
       console.warn('Failed to log created pool details:', (e as Error)?.message ?? e)
     }
 
     printSimulate([transaction])
   
-    // don't want to wait confirm, set sendAndConfirm to false or don't pass any params to execute
-    // const { txId } = await execute({ sendAndConfirm: true })
-    // console.log('pool created', {
-    //   txId,
-    //   poolKeys: Object.keys(extInfo.address).reduce(
-    //     (acc, cur) => ({
-    //       ...acc,
-    //       [cur]: extInfo.address[cur as keyof typeof extInfo.address].toString(),
-    //     }),
-    //     {}
-    //   ),
-    // })
+    // Execute the transaction to create the pool
+    console.log('Executing pool creation transaction...')
+    const { txId } = await execute({ sendAndConfirm: true })
+    
+    console.log('✅ Pool created successfully!')
+    console.log('Transaction ID:', txId)
+    console.log('Solscan URL:', `https://solscan.io/tx/${txId}`)
+    // Fix: Ensure asStr and addr are defined in this scope
+    const addr: any = extInfo.address
+    const asStr = (v: any) => (typeof v === 'string' ? v : v?.toString?.() ?? v)
+    console.log('Pool Explorer URL:', `https://solscan.io/account/${asStr(addr.poolId ?? addr.id)}`)
+    
+    console.log('Pool created', {
+      txId,
+      poolKeys: Object.keys(extInfo.address).reduce(
+        (acc, cur) => ({
+          ...acc,
+          [cur]: extInfo.address[cur as keyof typeof extInfo.address].toString(),
+        }),
+        {}
+      ),
+    })
+    
     process.exit() // if you don't want to end up node execution, comment this line
   }
   

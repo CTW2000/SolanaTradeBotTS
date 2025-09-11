@@ -22,6 +22,7 @@ import { connection, TOKEN_METADATA, TOKEN_CONFIG } from '../../config';
 import { TOKEN_METADATA_PROGRAM_ID } from '../../constants';
 import { loadMainKeypair } from '../../sqllite/Manager/keypairStore';
 import { storeToken, loadCurrentToken } from '../../sqllite/Manager/tokenStore';
+import { getMainWallet } from '../wallet/walletFun';
 
 const TOKEN_METADATA_PROGRAM_ID_PUBKEY = new PublicKey(TOKEN_METADATA_PROGRAM_ID);
 
@@ -189,9 +190,38 @@ export async function createTokenWithMetadata(privateKey: string | number[] | Ui
 }
 
 export async function main(): Promise<void> {
+  try {
+    // Get the main wallet
+    const mainWallet = await getMainWallet();
+    if (!mainWallet) {
+      console.error('No main wallet found. Please generate one first.');
+      return;
+    }
 
-  const current = await loadCurrentToken();
-  console.log('Current token:', current);
+    console.log('Using main wallet:', mainWallet.publicKey.toBase58());
+    
+    // Check current token
+    const current = await loadCurrentToken();
+    console.log('Current token:', current);
+
+    // Create a new token using the main wallet
+    console.log('Creating new token...');
+    const result = await createTokenWithMetadata(mainWallet.secretKey);
+    
+    if (result.success) {
+      console.log('✅ Token created successfully!');
+      console.log('Mint address:', result.mint);
+      console.log('Metadata address:', result.metadata);
+      console.log('Token account:', result.tokenAccount);
+      console.log('Transaction signature:', result.signature);
+      console.log('Explorer URL:', result.explorerUrl);
+      console.log('Transaction URL:', result.transactionUrl);
+    } else {
+      console.error('❌ Failed to create token:', result.error);
+    }
+  } catch (error) {
+    console.error('Error in main function:', error);
+  }
 }
 
 // Auto-run when executed directly
