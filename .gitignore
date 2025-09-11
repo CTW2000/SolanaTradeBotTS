@@ -2,3 +2,4 @@ node_modules/
 
 sqllite/DB/wallet.db
 sqllite/DB/token.db
+sqllite/DB/raydiumPool.db
