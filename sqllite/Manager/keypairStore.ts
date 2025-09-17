@@ -71,3 +71,36 @@ export async function loadMainKeypair(): Promise<LoadedKeypair | null> {
 		secretKey: new Uint8Array(parsed),
 	};
 }
+
+export async function storeLabeledKeypair(publicKey: string, secretKey: Uint8Array, label: string): Promise<number> {
+	const db = await getDb();
+	const result = await db.run(
+		`INSERT INTO keypairs (publicKey, secretKey, label, isMain) VALUES (?, ?, ?, 0)`,
+		publicKey,
+		JSON.stringify(Array.from(secretKey)),
+		label
+	);
+	return result.lastID as number;
+}
+
+export async function loadLabeledKeypairs(label: string, limit?: number): Promise<LoadedKeypair[]> {
+	const db = await getDb();
+	const rows = await db.all<StoredKeypairRow[]>(
+		`SELECT publicKey, secretKey FROM keypairs WHERE label = ? ORDER BY id DESC ${typeof limit === 'number' ? 'LIMIT ?' : ''}`,
+		...(typeof limit === 'number' ? [label, limit] as unknown[] : [label])
+	);
+	return rows.map((row) => {
+		let parsed: number[] = [];
+		try {
+			parsed = JSON.parse(row.secretKey) as number[];
+		} catch {
+			parsed = [];
+		}
+		return {
+			publicKey: row.publicKey,
+			secretKey: new Uint8Array(parsed),
+		};
+	});
+}
+
+

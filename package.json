@@ -4,12 +4,14 @@
   "description": "This is a solana trande bot using typeScript to write.",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "test:searcher": "ts-node function/jitoBundle/testSearcherClient.ts"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@coral-xyz/anchor": "^0.31.1",
     "@metaplex-foundation/mpl-token-metadata": "^2.13.0",
     "@raydium-io/raydium-sdk-v2": "^0.2.23-alpha",
     "@solana/web3.js": "^1.98.4",
@@ -17,11 +19,14 @@
     "bn": "^1.0.5",
     "decimal": "^0.0.2",
     "decimal.js": "^10.6.0",
+    "jito-ts": "^4.2.1",
     "sqlite": "^5.1.1",
     "sqlite3": "^5.1.7"
   },
   "devDependencies": {
     "@types/bn.js": "^5.2.0",
-    "@types/decimal.js": "^0.0.32"
+    "@types/decimal.js": "^0.0.32",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.5"
   }
 }

@@ -11,6 +11,7 @@ export interface StoredPoolRow {
   vaultB?: string
   poolFeeAccount?: string
   feeConfigId?: string
+  lutAddress?: string
   mintAAddress: string
   mintADecimals: number
   mintAProgramId: string
@@ -33,6 +34,7 @@ async function getDb(): Promise<Database> {
       vaultB TEXT,
       poolFeeAccount TEXT,
       feeConfigId TEXT,
+      lutAddress TEXT,
       mintAAddress TEXT NOT NULL,
       mintADecimals INTEGER NOT NULL,
       mintAProgramId TEXT NOT NULL,
@@ -51,13 +53,14 @@ async function getDb(): Promise<Database> {
   return db
 }
 
+
 export async function storePool(params: Omit<StoredPoolRow, 'id' | 'createdAt'>): Promise<number> {
   const db = await getDb()
   const result = await db.run(
     `INSERT INTO pools (
-      poolId, programId, lpMint, vaultA, vaultB, poolFeeAccount, feeConfigId,
+      poolId, programId, lpMint, vaultA, vaultB, poolFeeAccount, feeConfigId, lutAddress,
       mintAAddress, mintADecimals, mintAProgramId, mintBAddress, mintBDecimals, mintBProgramId
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     params.poolId,
     params.programId,
     params.lpMint ?? null,
@@ -65,6 +68,7 @@ export async function storePool(params: Omit<StoredPoolRow, 'id' | 'createdAt'>)
     params.vaultB ?? null,
     params.poolFeeAccount ?? null,
     params.feeConfigId ?? null,
+    params.lutAddress ?? null,
     params.mintAAddress,
     params.mintADecimals,
     params.mintAProgramId,
@@ -82,6 +86,7 @@ export async function storePool(params: Omit<StoredPoolRow, 'id' | 'createdAt'>)
   return insertedId
 }
 
+
 export interface LoadedCurrentPool {
   poolId: string
   programId: string
@@ -90,9 +95,11 @@ export interface LoadedCurrentPool {
   vaultB?: string
   poolFeeAccount?: string
   feeConfigId?: string
+  lutAddress?: string
   mintA: { address: string; decimals: number; programId: string }
   mintB: { address: string; decimals: number; programId: string }
 }
+
 
 export async function loadCurrentPool(): Promise<LoadedCurrentPool | null> {
   const db = await getDb()
@@ -110,9 +117,36 @@ export async function loadCurrentPool(): Promise<LoadedCurrentPool | null> {
     vaultB: row.vaultB ?? undefined,
     poolFeeAccount: row.poolFeeAccount ?? undefined,
     feeConfigId: row.feeConfigId ?? undefined,
+    lutAddress: row.lutAddress ?? undefined,
     mintA: { address: row.mintAAddress, decimals: row.mintADecimals, programId: row.mintAProgramId },
     mintB: { address: row.mintBAddress, decimals: row.mintBDecimals, programId: row.mintBProgramId },
   }
 }
+
+/**
+ * Store lutAddress for the current pool
+ */
+export async function storeLutAddress(lutAddress: string): Promise<void> {
+  const db = await getDb()
+  await db.run(
+    `UPDATE pools SET lutAddress = ? WHERE id = (SELECT poolRowId FROM current_pool WHERE id = 1)`,
+    lutAddress
+  )
+}
+
+/**
+ * Load lutAddress for the current pool
+ */
+export async function loadLutAddress(): Promise<string | null> {
+  const db = await getDb()
+  const row = await db.get<{ lutAddress: string }>(
+    `SELECT p.lutAddress FROM pools p
+     JOIN current_pool c ON p.id = c.poolRowId
+     WHERE c.id = 1`
+  )
+  return row?.lutAddress ?? null
+}
+
+
 
 
